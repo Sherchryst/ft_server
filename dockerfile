@@ -1,22 +1,35 @@
 FROM debian:buster
-#install nginx
-RUN apt-get update && apt-get install -y nginx
-RUN /etc/init.d/nginx start
-CMD ["/etc/init.d/nginx","start"]
 
-#COPY srcs/phpMyAdmin.conf /etc/nginx/conf.d
-#RUN apt-get -y install software-properties-common
-#RUN apt-get install -y wget
-#RUN apt-get install -y mariadb-server
-#RUN apt-get install -y php php-json php-fpm php-cgi php-mysqli php-pear php-mbstring php-gettext php-common php-phpseclib php-mysql
-#RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-#RUN wget https://files.phpmyadmin.net/phpMyAdmin/5.0.1/phpMyAdmin-5.0.1-english.tar.gz
-#RUN tar xvf phpMyAdmin-5.0.1-english.tar.gz && rm phpMyAdmin*.gz
-#RUN mv phpMyAdmin-5.0.1-english /usr/share/phpMyAdmin
+RUN apt-get update && apt-get upgrade -y && apt-get install -y nginx && apt-get install -y wget
+RUN apt-get install -y mariadb-server
+RUN apt-get install -y php-curl php-gd php-intl php-mbstring php-soap php-xml php-xmlrpc php-zip php-mysql php-fpm
 
-#COPY srcs/config.inc.php /usr/share/phpMyAdmin
-#RUN /etc/init.d/mysql start && mysql -u root -p
-#RUN ls /usr/share/phpMyAdmin/sql/create_tables.sql -u root -p
+RUN wget https://files.phpMyAdmin.net/phpMyAdmin/4.9.4/phpMyAdmin-4.9.4-all-languages.tar.gz
+RUN tar -zxvf phpMyAdmin-4.9.4-all-languages.tar.gz && rm phpMyAdmin*.gz
+RUN mv phpMyAdmin-4.9.4-all-languages /var/www/html/phpMyAdmin
 
+RUN wget https://wordpress.org/latest.tar.gz
+RUN mkdir /var/www/html/ftserver
+RUN tar xzf latest.tar.gz --strip-components=1 -C /var/www/html/ftserver
+RUN chown www-data:www-data /var/www/html/* -R
+RUN chown -R www-data:www-data /var/www/html/phpMyAdmin && chmod 777 /var/www/html/phpMyAdmin
+RUN mkdir /etc/phpMyAdmin && mkdir /var/www/html/phpMyAdmin/tmp && chmod 777 /var/www/html/phpMyAdmin/tmp
+RUN rm /etc/nginx/sites-enabled/default
+RUN rm /var/www/html/index.nginx-debian.html
 
-#WORKDIR /Users/sgah/Repositories/ft_server
+COPY srcs/default.conf /etc/nginx/conf.d/.
+COPY srcs/phpMyAdmin.conf /etc/nginx/conf.d/.
+COPY srcs/config.inc.php /var/www/html/phpMyAdmin/.
+COPY srcs/phpMyAdmin /etc/nginx/sites-available/.
+RUN ln -s /etc/nginx/sites-available/phpMyAdmin /etc/nginx/sites-enabled/phpMyAdmin
+COPY srcs/wp-config.php /var/www/html/ftserver/.
+COPY srcs/conf.sql .
+COPY srcs/nginx-selfsigned.key /etc/ssl/private/.
+COPY srcs/nginx-selfsigned.crt /etc/ssl/certs/.
+COPY srcs/self-signed.conf /etc/nginx/snippets/.
+COPY srcs/dhparam.pem /etc/nginx/.
+COPY srcs/ssl-params.conf /etc/nginx/snippets/.
+COPY srcs/ftserver /etc/nginx/sites-available/.
+RUN ln -s /etc/nginx/sites-available/ftserver /etc/nginx/sites-enabled/ftserver
+
+CMD service nginx start && service mysql start && mysql < conf.sql -u root && mariadb < /var/www/html/phpMyAdmin/sql/create_tables.sql -u root && service php7.3-fpm start && bash
