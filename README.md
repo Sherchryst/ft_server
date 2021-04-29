@@ -1,4 +1,4 @@
-#ft_server
+# ft_server
 
 ## What is ft_server ❔
 
